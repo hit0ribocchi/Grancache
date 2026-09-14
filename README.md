@@ -15,7 +15,14 @@
 2. 把它放到一个固定目录，双击运行 —— 会打开**控制面板**；
 3. 面板里点 **「一键启动（缓存 + Chrome + 游戏）」**，代理在后台跑起来，并用带缓存配置的 Chrome 打开游戏。
 
-没装过证书的话，第一次启动会提示安装本地 CA（`scripts\trust.ps1`）—— 这是解开 HTTPS 才能缓存素材的前提，卸载用 `scripts\untrust.ps1`。
+**首次使用要先做两步（不会自动）**——CA 是**本机生成**的，不需要下载：
+
+```powershell
+scripts\certs.ps1     # 1) 用 openssl 生成 CA（ca.key/ca.crt）并预生成游戏域名证书
+scripts\trust.ps1     # 2) 把 CA 装进「当前用户 → 受信任的根证书颁发机构」（不需要管理员权限）
+```
+
+没做这两步，启动会直接报 `找不到本地 CA 证书`。卸载：`scripts\untrust.ps1`（再删掉 `runtime\certs` 即完全恢复）。
 
 > 停止缓存：面板点「停止缓存」，或命令行 `Grancache.exe --stop`。
 > 不想开面板、直接一键进游戏：`Grancache.exe --play`（可以只给这一条做快捷方式）。
@@ -74,7 +81,7 @@ D:\gbf-cache\
 要求：Windows 10/11、**Node ≥ 22**（打包 exe 用 24）、Chrome、一个可用的本地出口（0dcloud 等）。
 
 ```powershell
-git clone https://github.com/<owner>/Grancache.git
+git clone https://github.com/hit0ribocchi/Grancache.git
 cd Grancache
 
 npm start            # = 打开控制面板
@@ -107,7 +114,7 @@ npm run ui           # 改了面板界面后重建（首次需 npm --prefix ui i
 
 ```
 src\       main.js（入口：CLI/模式/日志/归档/追踪）· cache/policy/certs/upstream · panel\server.js（面板本地服务）
-test\      unit / verify / migrate / trace / panel / e2e（Node 内置 test 风格，纯离线）
+test\      unit / verify / migrate / trace / panel / e2e（纯离线、用临时目录，不碰真实缓存与配置）
 tools\     研发工具：report（追踪报告）· latency · audit · bench · disk · throughput · micro · cdp · browser · probe
 scripts\   构建与运维：build.ps1（SEA 打包）· bundle.mjs（内联）· icon · certs · trust/untrust · prepare · migrate · import · patch
 ui\        控制面板前端（React + Ant Design + Vite）；构建产物会被内联进 exe

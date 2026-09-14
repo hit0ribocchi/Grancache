@@ -44,7 +44,10 @@ class CertStore {
   async init() {
     if (!fs.existsSync(this.caCertPath) || !fs.existsSync(this.caKeyPath)) {
       throw new Error(
-        `找不到本地 CA 证书，请先运行 tools/certs.ps1。\n期望文件：${this.caCertPath}`
+        '找不到本地 CA 证书。请先运行两步：\n' +
+          '  1) scripts\\certs.ps1  —— 用 openssl 本机生成 CA 与游戏域名证书\n' +
+          '  2) scripts\\trust.ps1  —— 把 CA 装进「当前用户 → 受信任的根证书颁发机构」（不需要管理员）\n' +
+          `期望文件：${this.caCertPath}`
       );
     }
     this.caCertPem = await fsp.readFile(this.caCertPath, 'utf8');
