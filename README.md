@@ -19,9 +19,20 @@
 
 ## 快速开始
 
-1. 构建 `Grancache.exe`（见 [从源码构建](#从源码构建)，本项目不提供预编译包）；
-2. 放到固定目录（运行期数据生成在同目录的 `runtime\` 下），**双击运行**，打开控制面板；
-3. 点 **「一键启动（缓存 + Chrome + 游戏）」**。
+先在 [Releases](../../releases) 下载 `Grancache.exe`（还没有发布时自己构建，见 [从源码构建](#从源码构建)），放到一个固定目录 —— 运行期数据会生成在同目录的 `runtime\` 下。然后任选一种方式启动：
+
+**方式一 · 双击 exe（图形面板）**
+
+双击 `Grancache.exe` 打开控制面板，点 **「一键启动（缓存 + Chrome + 游戏）」** 即可。
+
+**方式二 · 命令行**
+
+```powershell
+Grancache.exe --play     # 起缓存 + 打开 Chrome 进游戏
+Grancache.exe --panel    # 只打开控制面板
+```
+
+源码模式（不打包 exe）用 `npm start` / `npm run serve`；全部参数见 [命令行](#命令行)。
 
 首次运行会自动生成本地 CA 并装进 **「当前用户 → 受信任的根证书颁发机构」**（无需管理员权限）。关掉自动信任：设 `"autoTrustCa": false`；完全恢复：`scripts\untrust.ps1` 加删除 `runtime\certs`。
 
