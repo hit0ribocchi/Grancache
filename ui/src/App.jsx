@@ -6,7 +6,7 @@ import {
 import {
   CloudServerOutlined, DatabaseOutlined, FileTextOutlined, GlobalOutlined,
   InfoCircleOutlined, PlayCircleOutlined, ReloadOutlined, RocketOutlined,
-  StopOutlined, ThunderboltOutlined,
+  StopOutlined, ThunderboltOutlined, WarningOutlined,
 } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
@@ -45,6 +45,17 @@ const fmtBytes = (n) => {
 const CARD = { background: '#161b22', borderColor: '#30363d' };
 
 const LEVEL_COLOR = { DEBUG: 'default', INFO: 'blue', WARN: 'orange', ERROR: 'red' };
+
+// 未命中的原因（cache.get 的 onSkip 报出来的）
+const MISS_REASON = {
+  'not-cached': '本地没有',
+  expired: '已过期',
+  'size-mismatch': '长度不符',
+  'all-zero': '全零',
+  unreadable: '读不出来',
+  'md5-mismatch': 'md5 不符',
+  encoding: '编码不兼容',
+};
 
 function kindColor(kind) {
   if (/^(HIT|OPTIONS-HIT|OVERRIDE)/.test(kind)) return 'green';
@@ -147,6 +158,35 @@ const COLUMNS = [
   { title: '路径', dataIndex: 'path', ellipsis: true },
 ];
 
+const MISS_COLUMNS = [
+  {
+    title: '对象',
+    dataIndex: 'key',
+    ellipsis: true,
+    render: (v) => <Tooltip title={v}><span style={{ fontFamily: 'Consolas, monospace', fontSize: 12 }}>{v}</span></Tooltip>,
+  },
+  {
+    title: '类型',
+    dataIndex: 'cached',
+    width: 140,
+    render: (v) =>
+      v > 0
+        ? <Tag color="red" style={{ marginRight: 0 }}>有缓存却未命中</Tag>
+        : <Tag style={{ marginRight: 0 }}>首次加载</Tag>,
+  },
+  { title: '原因', dataIndex: 'reason', width: 120, render: (v) => MISS_REASON[v] || v },
+  {
+    title: '次数',
+    dataIndex: 'count',
+    width: 90,
+    align: 'right',
+    render: (v, r) => (
+      <Tooltip title={`首次 ${r.first ?? 0} · 有缓存却未命中 ${r.cached ?? 0}`}>{v}</Tooltip>
+    ),
+  },
+  { title: '最近', dataIndex: 'lastAt', width: 90 },
+];
+
 export default function App() {
   const [status, setStatus] = useState(null);
   const [err, setErr] = useState(null);
@@ -154,6 +194,7 @@ export default function App() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [busy, setBusy] = useState(null);
   const [logFilter, setLogFilter] = useState('全部');
+  const [missFilter, setMissFilter] = useState('全部');
   const [modal, modalHolder] = Modal.useModal();
   const [msg, msgHolder] = message.useMessage();
 
@@ -231,6 +272,11 @@ export default function App() {
     () => rows.filter(FILTERS[logFilter] || FILTERS.全部).reverse(),
     [rows, logFilter]
   );
+  const missObjects = st?.missObjects || [];
+  const missVisible = missObjects.filter((o) =>
+    missFilter === '首次加载' ? o.first > 0 : missFilter === '有缓存却未命中' ? o.cached > 0 : true
+  );
+  const missCachedKeys = missObjects.filter((o) => o.cached > 0).length;
 
   const kpi = (title, value, suffix, sub, bar) => (
     <Card style={CARD} styles={{ body: { padding: 18 } }}>
@@ -299,7 +345,12 @@ export default function App() {
               <div>
                 <Text type="secondary" style={{ fontSize: 12 }}>可缓存命中率</Text>
                 <div style={{ fontSize: 22, lineHeight: 1.4 }}>{hits}</div>
-                <Text type="secondary" style={{ fontSize: 12 }}>命中 · 回源 {misses}</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  回源 {misses}（首次 {st?.missFirst ?? 0} ·
+                  <span style={{ color: (st?.missCached ?? 0) > 0 ? '#ff7b72' : undefined }}>
+                    {' '}有缓存却未命中 {st?.missCached ?? 0}
+                  </span>）
+                </Text>
               </div>
             </Flex>
           </Card>
@@ -435,6 +486,39 @@ export default function App() {
           </Card>
         </Col>
       </Row>
+
+      <Card
+        title={
+          <Space>
+            <WarningOutlined />
+            未命中对象
+            <Tooltip title="按次数排序。首次加载是正常的；「有缓存却未命中」才是缓存没生效，优先查这些">
+              <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
+                共 {st?.missObjectTotal ?? 0} 个 · 列表内「有缓存却未命中」{missCachedKeys} 个
+              </Text>
+            </Tooltip>
+          </Space>
+        }
+        style={{ ...CARD, marginTop: 16 }}
+        styles={{ body: { padding: 12 } }}
+        extra={
+          <Segmented
+            size="small"
+            value={missFilter}
+            onChange={setMissFilter}
+            options={['全部', '首次加载', '有缓存却未命中']}
+          />
+        }
+      >
+        <Table
+          size="small"
+          rowKey="key"
+          columns={MISS_COLUMNS}
+          dataSource={missVisible}
+          pagination={{ pageSize: 10, size: 'small', hideOnSinglePage: true }}
+          locale={{ emptyText: '（没有未命中的对象）' }}
+        />
+      </Card>
 
       <Card
         title={<Space><FileTextOutlined />实时日志<Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>runtime\logs\proxy.log</Text></Space>}

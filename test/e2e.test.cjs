@@ -484,6 +484,14 @@ async function stopProxy() {
     await sleep(250);
     check('用例10 坏对象被重写回正常内容', fs.readFileSync(zAbs).equals(BODY));
 
+    // 未命中要分得清两类：本机没有（首次） vs 本机有对象却用不了（缓存没生效）
+    const stZ = await stats();
+    const zRec = (stZ.missObjects || []).find((o) => o.key === rel('127.0.0.1/assets/z.png'));
+    check('用例10 统计区分出「有缓存却未命中」', stZ.missCached >= 1, `missCached=${stZ.missCached}`);
+    check('用例10 记录了未命中对象与原因', !!zRec && zRec.cached >= 1 && zRec.reason === 'all-zero',
+      zRec ? `cached=${zRec.cached}/first=${zRec.first}/${zRec.reason}` : '缺记录');
+    check('用例10 首次未命中单独计数', stZ.missFirst >= 1, `missFirst=${stZ.missFirst}`);
+
     // ---- 用例 11：版本 query 目录化，互不覆盖 ----
     const vq1 = await proxyGet(`${O}/assets/v.png?v=1`);
     const vq2 = await proxyGet(`${O}/assets/v.png?v=2`);

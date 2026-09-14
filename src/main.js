@@ -412,10 +412,13 @@ const stats = {
   overrides: 0,
   preflights: 0,
   missNoStore: 0,
+  missFirst: 0,   // 本地压根没有：这个素材是第一次见到
+  missCached: 0,  // 本机有对象但用不了（expired/size-mismatch/all-zero…）—— 缓存没生效的才是这个
   stale: 0,
   bytesFromCache: 0,
   bytesFromNetwork: 0,
   hosts: new Map(), // host -> {hits, misses, bypass}
+  missObjects: new Map(), // key -> {key, host, kind, reason, count, lastAt}，带上限
 };
 
 const cacheFlights = new Map();
@@ -448,6 +451,34 @@ function noteHost(host, kind) {
     stats.hosts.set(host, e);
   }
   e[kind]++;
+}
+
+// 未命中对象清单：调优时要能回答"到底是哪些对象没缓存住、为什么"。
+// key 之外只留几个短字段，超过 MISS_OBJECT_MAX 就丢最久没动过的那条。
+const MISS_OBJECT_MAX = 400;
+
+function noteMissObject({ key, host, kind, reason }) {
+  if (!key) return;
+  let rec = stats.missObjects.get(key);
+  if (!rec) {
+    if (stats.missObjects.size >= MISS_OBJECT_MAX) {
+      stats.missObjects.delete(stats.missObjects.keys().next().value);
+    }
+    rec = { key, host, first: 0, cached: 0, count: 0, reason, lastAt: null };
+  } else {
+    stats.missObjects.delete(key); // 重新插到队尾 → 淘汰的总是最久没动的
+  }
+  rec.host = host;
+  // 同一个 key 可能先"首次未命中"、后来变成"有缓存却未命中"，两类分开累计
+  if (kind === 'cached') {
+    rec.cached += 1;
+    rec.reason = reason;
+  } else {
+    rec.first += 1;
+  }
+  rec.count += 1;
+  rec.lastAt = new Date().toISOString().slice(11, 19);
+  stats.missObjects.set(key, rec);
 }
 
 function human(bytes) {
@@ -1436,6 +1467,16 @@ function handleRequest(req, res, target) {
   const missThenForward = () => {
     stats.misses++;
     noteHost(host, 'misses');
+    // 分两类：本机没有（第一次见到这个素材） / 本机有对象但用不了（缓存没生效）。
+    // skipReasons 由 cache.get 的 onSkip 填好，走到这里就已经有值。
+    const rejected = skipReasons[0] || null;
+    if (rejected) {
+      stats.missCached++;
+      noteMissObject({ key, host, kind: 'cached', reason: rejected });
+    } else {
+      stats.missFirst++;
+      noteMissObject({ key, host, kind: 'first', reason: 'not-cached' });
+    }
     const flight = beginCacheFlight(key);
     if (flight.owner) {
       forward();
@@ -1457,8 +1498,10 @@ function handleRequest(req, res, target) {
       .then((ov) => {
         if (ov && overrideServable(ov)) return respondOverride(ov);
         return cache.get(cachePaths, cacheGetOpts).then((hit) => {
-          if (hit && canServeEncoding(hit)) respondFromCache(hit);
-          else missThenForward();
+          if (hit && canServeEncoding(hit)) return respondFromCache(hit);
+          // 本机确实有对象，只是这份编码客户端不认 —— 同样算"有缓存却没命中"
+          if (hit && !canServeEncoding(hit)) skipReasons.push('encoding');
+          return missThenForward();
         });
       })
       .catch(() => {
@@ -1750,6 +1793,8 @@ const statsServer = http.createServer((req, res) => {
     requests: stats.requests,
     hits: stats.hits,
     misses: stats.misses,
+    missFirst: stats.missFirst,
+    missCached: stats.missCached,
     bypass: stats.bypass,
     stored: stats.stored,
     revalidations: stats.revalidations,
@@ -1774,6 +1819,9 @@ const statsServer = http.createServer((req, res) => {
       retries: latency.retries,
     },
     hosts: Object.fromEntries([...stats.hosts.entries()].sort((a, b) => b[1].hits - a[1].hits)),
+    // 未命中对象清单（按次数降序）：面板上直接列出"哪些素材没缓存住、为什么"
+    missObjects: [...stats.missObjects.values()].sort((a, b) => b.count - a.count).slice(0, 80),
+    missObjectTotal: stats.missObjects.size,
   };
   if (req.url.startsWith('/log')) {
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
@@ -2178,7 +2226,8 @@ async function main() {
     const ph = phaseStats();
     const fmt = (k) => (ph[k] ? ` ${k}:${ph[k].p50}/${ph[k].p90}/${ph[k].max}` : '');
     log(
-      `[stats] 请求=${stats.requests} 命中=${stats.hits} 未命中=${stats.misses} 透传=${stats.bypass} ` +
+      `[stats] 请求=${stats.requests} 命中=${stats.hits} 未命中=${stats.misses}` +
+      `(首次=${stats.missFirst} 有缓存却未命中=${stats.missCached}) 透传=${stats.bypass} ` +
       `本地读盘=${human(stats.bytesFromCache)} 外网下载=${human(stats.bytesFromNetwork)} ` +
       `磁盘缓存=${cache.stats().megabytes}MB/${cache.stats().objects}个`
     );
