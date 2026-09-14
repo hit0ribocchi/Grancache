@@ -42,6 +42,8 @@ class CertStore {
   }
 
   async init() {
+    // 首次运行自动化：没有 CA 就现场生成（openssl 一般随 Git for Windows 安装）
+    this.caCreated = await this.ensureCa();
     if (!fs.existsSync(this.caCertPath) || !fs.existsSync(this.caKeyPath)) {
       throw new Error(
         '找不到本地 CA 证书。请先运行两步：\n' +
@@ -53,7 +55,73 @@ class CertStore {
     this.caCertPem = await fsp.readFile(this.caCertPath, 'utf8');
     this.caKeyPem = await fsp.readFile(this.caKeyPath, 'utf8');
     await fsp.mkdir(this.leafDir, { recursive: true });
+    await this.prewarmCerts();
+  }
 
+  /**
+   * 缺 CA 时用 openssl 现场生成（幂等）。找不到 openssl 就返回 false，
+   * 由 init() 抛出带指引的错误。生成物：runtime/certs/ca/{ca.key,ca.crt,ca.der}
+   */
+  async ensureCa() {
+    if (fs.existsSync(this.caCertPath) && fs.existsSync(this.caKeyPath)) return false;
+    const openssl = this.resolveOpenssl();
+    if (!openssl) return false;
+    await fsp.mkdir(this.caDir, { recursive: true });
+    await run(openssl, ['genrsa', '-out', this.caKeyPath, '2048']);
+    await run(openssl, [
+      'req', '-x509', '-new', '-nodes', '-key', this.caKeyPath, '-sha256', '-days', '3650',
+      '-subj', '/CN=Grancache Local CA/O=Grancache', '-out', this.caCertPath,
+    ]);
+    await run(openssl, ['x509', '-in', this.caCertPath, '-outform', 'der', '-out', path.join(this.caDir, 'ca.der')]);
+    return true;
+  }
+
+  /** openssl 在哪：config.opensslPath → Git for Windows 默认路径 → PATH */
+  resolveOpenssl() {
+    const cands = [this.openssl, 'C:\\Program Files\\Git\\usr\\bin\\openssl.exe', 'openssl'];
+    for (const c of cands) {
+      if (!c) continue;
+      if (c === 'openssl' || fs.existsSync(c)) return c;
+    }
+    return null;
+  }
+
+  /** 这张 CA 的 Windows 指纹（SHA-1，去冒号） */
+  caThumbprint() {
+    if (!this._thumb) {
+      const pem = this.caCertPem || fs.readFileSync(this.caCertPath, 'utf8');
+      this._thumb = new crypto.X509Certificate(pem).fingerprint.replace(/:/g, '').toUpperCase();
+    }
+    return this._thumb;
+  }
+
+  /** 是否已经在「当前用户 → 受信任的根证书颁发机构」里 */
+  async isTrusted() {
+    const ps =
+      `if (Get-ChildItem Cert:\\CurrentUser\\Root | Where-Object { $_.Thumbprint -eq '${this.caThumbprint()}' }) { 'trusted' } else { 'missing' }`;
+    try {
+      const out = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps]);
+      return /trusted/.test(String(out));
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * 把 CA 装进当前用户的受信任根（不需要管理员权限）。
+   * 用 certutil -user，避免依赖 PowerShell 的 PKI 模块。
+   */
+  async trustCa() {
+    const der = path.join(this.caDir, 'ca.der');
+    if (!fs.existsSync(der)) {
+      await run(this.resolveOpenssl() || 'openssl', ['x509', '-in', this.caCertPath, '-outform', 'der', '-out', der]);
+    }
+    await run('certutil.exe', ['-user', '-addstore', '-f', 'Root', der]);
+    return true;
+  }
+
+  /** 预生成 prewarmHosts 的叶子证书（比每次现场签发快，也让 exe 在没有 openssl 时更稳） */
+  async prewarmCerts() {
     for (const host of this.prewarmHosts) {
       try {
         await this.getSecureContext(host);

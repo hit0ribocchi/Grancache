@@ -15,7 +15,11 @@
 2. 把它放到一个固定目录，双击运行 —— 会打开**控制面板**；
 3. 面板里点 **「一键启动（缓存 + Chrome + 游戏）」**，代理在后台跑起来，并用带缓存配置的 Chrome 打开游戏。
 
-**首次使用要先做两步（不会自动）**——CA 是**本机生成**的，不需要下载：
+**首次运行会自动准备好 CA**——CA 是**本机生成**的，不需要下载：
+
+启动时如果 `runtime\certs` 里还没有 CA，Grancache 会用 openssl（Git for Windows 自带）**现场生成**，并把它装进
+**「当前用户 → 受信任的根证书颁发机构」**（`certutil -user`，不需要管理员权限）。想关掉自动信任就设
+`"autoTrustCa": false`，然后手工执行下面两步：
 
 ```powershell
 scripts\certs.ps1     # 1) 用 openssl 生成 CA（ca.key/ca.crt）并预生成游戏域名证书

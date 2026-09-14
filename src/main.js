@@ -2132,6 +2132,17 @@ async function main() {
   }
   await cache.init();
   await certs.init();
+  if (certs.caCreated) log('[certs] 首次运行：已自动生成本地 CA（runtime/certs/ca）');
+  if (config.autoTrustCa !== false) {
+    try {
+      if (!(await certs.isTrusted())) {
+        await certs.trustCa();
+        log('WARN', '[certs] 已把本地 CA 装入「当前用户 → 受信任的根证书颁发机构」（卸载：scripts\\untrust.ps1）');
+      }
+    } catch (err) {
+      log('WARN', `[certs] 自动安装 CA 信任失败：${err.message}（可手工运行 scripts\\trust.ps1）`);
+    }
+  }
   await upstream.init();
   log(`[upstream] 出口 = ${upstream.describe()}`);
   certsReady = true;
