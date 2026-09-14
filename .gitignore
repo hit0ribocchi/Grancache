@@ -1,0 +1,18 @@
+# 运行期数据：证书私钥(ca.key)、日志、缓存索引 —— 绝不入库
+runtime/
+*.pid
+
+# 打包产物与中间文件（npm run build / scripts\build.ps1 可重建）
+*.exe
+build/bundle.js
+build/sea-prep.blob
+build/rcedit.exe
+
+# 前端依赖（npm --prefix ui install 重装）
+ui/node_modules/
+
+# 系统与编辑器
+Thumbs.db
+desktop.ini
+.DS_Store
+*.log

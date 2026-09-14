@@ -1,0 +1,20 @@
+{
+  "name": "gbf-cache-ui",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "GBF 缓存加速 · 控制面板界面（Ant Design + React，构建产物内联进 exe）",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "antd": "^5.22.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}

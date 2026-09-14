@@ -1,0 +1,26 @@
+{
+  "name": "grancache",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Grancache —— 碧蓝幻想的游戏缓存代理（本地 HTTPS 缓存 + 控制面板）",
+  "main": "src/main.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/main.js",
+    "serve": "node src/main.js --serve",
+    "panel": "node src/main.js --panel",
+    "stop": "node src/main.js --stop",
+    "test": "npm run test:fast && npm run test:e2e",
+    "test:fast": "node test/unit.test.cjs && node test/verify.test.cjs && node test/migrate.test.cjs && node test/trace.test.cjs && node test/panel.test.cjs",
+    "test:e2e": "node test/e2e.test.cjs",
+    "test:exe": "set TARGET=exe&& node test/panel.test.cjs && node test/e2e.test.cjs",
+    "build": "powershell -ExecutionPolicy Bypass -File scripts/build.ps1",
+    "ui": "npm --prefix ui run build",
+    "report": "node tools/report.cjs",
+    "bench": "node tools/bench.mjs",
+    "migrate": "node scripts/migrate.mjs",
+    "import": "node scripts/import.mjs"
+  }
+}

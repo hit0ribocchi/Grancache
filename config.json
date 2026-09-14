@@ -1,0 +1,125 @@
+{
+  "listen": { "host": "127.0.0.1", "port": 18080 },
+  "statsPort": 18081,
+
+  "cacheDir": "D:/gbf-cache",
+  "maxCacheGB": 20,
+  "maxObjectMB": 64,
+  "verifyIntegrity": false,
+  "browserMaxAgeSeconds": 300,
+  "aliasBrowserMaxAgeSeconds": 604800,
+  "cacheKeyStripQueryParams": ["_", "t", "uid"],
+
+  "cacheHostFallback": "prd-game-a-granbluefantasy.akamaized.net",
+  "queryDirPrefix": "__q_",
+  "overrideEnable": true,
+  "optionsPreflightEnable": true,
+  "optionsPreflightMaxAge": 604360,
+  "logMinLevel": "DEBUG",
+  "logKeepRuns": 10,
+  "traceJsonl": true,
+  "traceMaxMB": 16,
+
+  "staleIfErrorSeconds": 0,
+  "retryOn5xx": true,
+  "retry5xxDelayMs": 150,
+  "inactiveDays": 0,
+  "idleSweepMinutes": 30,
+  "idleSweepFiles": 5000,
+  "rescanCheckSeconds": 60,
+  "rescanBatchFiles": 20000,
+
+  "expireMode": "immortal",
+  "revalidateAfterSeconds": 0,
+  "minMaxAge": 3600,
+  "fallbackTtlSeconds": 2592000,
+  "aggressiveAssetCache": true,
+
+  "assetHostPatterns": [
+    "*.granbluefantasy.jp",
+    "*granbluefantasy.akamaized.net",
+    "prd-game-*.akamaized.net",
+    "*.gbf.game.mbga.jp",
+    "gbf.game-a*.mbga.jp"
+  ],
+
+  "neverCacheContentTypes": ["text/html"],
+
+  "assetExtensions": [
+    "png", "jpg", "jpeg", "webp", "gif", "svg", "ico", "bmp", "avif", "tif", "tiff",
+    "mp3", "m4a", "m4s", "ogg", "oga", "opus", "wav", "aac", "flac",
+    "mp4", "webm", "mov",
+    "woff", "woff2", "ttf", "otf", "eot",
+    "bin", "atlas", "skel", "fnt", "basis", "ktx", "ktx2", "dds", "pvr", "wasm"
+  ],
+
+  "excludePatterns": [
+    "/rest/",
+    "/api/",
+    "/user/",
+    "/login",
+    "/logout",
+    "/oauth",
+    "/session",
+    "/auth",
+    "\\.html?(\\?|$|#)",
+    "\\.php(\\?|$|#)",
+    "\\.do(\\?|$|#)",
+    "\\.json(\\?|$|#)"
+  ],
+
+  "passthroughHosts": [],
+  "insecureUpstream": false,
+
+  "hostAliases": {
+    "prd-game-a1-granbluefantasy.akamaized.net": "prd-game-a-granbluefantasy.akamaized.net",
+    "prd-game-a2-granbluefantasy.akamaized.net": "prd-game-a-granbluefantasy.akamaized.net",
+    "prd-game-a3-granbluefantasy.akamaized.net": "prd-game-a-granbluefantasy.akamaized.net",
+    "prd-game-a4-granbluefantasy.akamaized.net": "prd-game-a-granbluefantasy.akamaized.net",
+    "prd-game-a5-granbluefantasy.akamaized.net": "prd-game-a-granbluefantasy.akamaized.net"
+  },
+
+  "apiDumpPatterns": [],
+  "apiDumpDir": "runtime/logs/api-dump",
+  "apiDumpMaxKB": 4096,
+
+  "keepWarmSeconds": 20,
+  "keepWarmHosts": [
+    "game.granbluefantasy.jp",
+    "prd-game-a-granbluefantasy.akamaized.net",
+    "connect.mobage.jp"
+  ],
+
+  "blockHostPatterns": [
+    "*datadoghq*",
+    "*.doubleclick.net",
+    "*.googletagmanager.com",
+    "*.google-analytics.com",
+    "*analytics.mbga.jp"
+  ],
+
+  "upstream": {
+    "mode": "auto",
+    "host": "127.0.0.1",
+    "port": 0,
+    "candidates": [17891, 7890, 7897, 7891, 10809, 10808, 2080, 20171, 1080, 8889, 33210],
+    "probeTimeoutMs": 1500
+  },
+
+  "opensslPath": "C:/Program Files/Git/usr/bin/openssl.exe",
+  "prewarmHosts": [
+    "game.granbluefantasy.jp",
+    "*.granbluefantasy.jp",
+    "*.mbga.jp",
+    "*.akamaized.net",
+    "*.cygames.jp",
+    "*.cygames.com",
+    "*.granbluefantasy.com"
+  ],
+
+  "logFile": "runtime/logs/proxy.log",
+  "logMaxMB": 32,
+  "logConsole": true,
+  "logRequests": true,
+  "printStatsEverySeconds": 60
+}
