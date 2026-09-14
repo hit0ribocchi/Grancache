@@ -6,6 +6,8 @@
 
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![node](https://img.shields.io/badge/node-%E2%89%A522-339933)
+![release](https://img.shields.io/github/v/release/hit0ribocchi/Grancache?color=0078D4)
+![downloads](https://img.shields.io/github/downloads/hit0ribocchi/Grancache/total?color=0078D4)
 ![last-commit](https://img.shields.io/github/last-commit/hit0ribocchi/Grancache?color=0078D4)
 ![repo-size](https://img.shields.io/github/repo-size/hit0ribocchi/Grancache?color=0078D4)
 ![license](https://img.shields.io/badge/license-MIT-green)
@@ -19,7 +21,7 @@
 
 ## 快速开始
 
-先在 [Releases](../../releases) 下载 `Grancache.exe`（还没有发布时自己构建，见 [从源码构建](#从源码构建)），放到一个固定目录 —— 运行期数据会生成在同目录的 `runtime\` 下。然后任选一种方式启动：
+从 [Releases](../../releases) 下载 `Grancache.exe`（也可以自己构建，见 [从源码构建](#从源码构建)），放到一个固定目录 —— 运行期数据会生成在同目录的 `runtime\` 下。然后任选一种方式启动：
 
 **方式一 · 双击 exe（图形面板）**
 
