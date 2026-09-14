@@ -546,6 +546,18 @@ function restoreSystemProxyQuietly() {
   }
 }
 
+// 自愈：上次要是被强杀（--stop 之外的杀法），PAC 会留在系统里指向一个已经没了的端口，
+// 浏览器拿不到 PAC 就只能全走直连 —— 那会把用户原来的出口绕掉。启动任何模式时检查一次。
+(function healStaleSystemProxy() {
+  try {
+    if (!systemProxy.isApplied() || !systemProxy.ownerDead()) return;
+    systemProxy.restore();
+    console.error('[proxy] 发现上次遗留的系统代理设置（接管它的进程已不在），已自动还原');
+  } catch {
+    /* 自愈失败不影响主流程 */
+  }
+})();
+
 function makeAgent(protocol, rejectUnauthorized) {
   const AgentClass = protocol === 'https:' ? https.Agent : http.Agent;
   const agent = new AgentClass({
@@ -2263,7 +2275,7 @@ async function main() {
       try {
         // 上次可能被强杀，没来得及还原；先还原再接管，避免把旧 PAC 留在系统里
         if (systemProxy.isApplied()) systemProxy.restore();
-        systemProxy.apply(pacUrl());
+        systemProxy.apply(pacUrl(), process.pid);
         log('[proxy] 已接管系统代理（PAC）：已经开着的浏览器也会走缓存，--stop 时自动还原');
       } catch (err) {
         log('WARN', `[proxy] 接管系统代理失败（不影响本机缓存）：${err.message}`);
@@ -2395,7 +2407,15 @@ if (MODE === 'play') {
   const on = /on$/i.test(SYSPROXY_ARG);
   try {
     if (on) {
-      const r = systemProxy.apply(pacUrl());
+      // 单独接管时，归属记在"正在跑的代理"头上，别记成这个短命 CLI 进程
+      const owner = (() => {
+        try {
+          return Number(fs.readFileSync(pidFilePath(), 'utf8').trim()) || 0;
+        } catch {
+          return 0;
+        }
+      })();
+      const r = systemProxy.apply(pacUrl(), owner);
       console.log(
         r.reason === 'already'
           ? '系统代理已经在接管中。'

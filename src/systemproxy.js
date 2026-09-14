@@ -76,9 +76,11 @@ class SystemProxy {
 
   /**
    * 把系统代理的 PAC 指向我们。已经挂过同一个 PAC 就什么都不做（幂等）。
+   * @param {string} pacUrl
+   * @param {number} ownerPid 这次接管属于哪个进程（0 = 说不清，别自动清理）
    * @returns {{applied: boolean, reason: string, previous?: object}}
    */
-  apply(pacUrl) {
+  apply(pacUrl, ownerPid = 0) {
     const current = readCurrent();
     if (this.isApplied() && current.autoConfigUrl === pacUrl) {
       return { applied: true, reason: 'already' };
@@ -87,7 +89,7 @@ class SystemProxy {
     fs.mkdirSync(path.dirname(this.stateFile), { recursive: true });
     fs.writeFileSync(
       this.stateFile,
-      JSON.stringify({ pacUrl, previous: current, at: new Date().toISOString() }, null, 2)
+      JSON.stringify({ pacUrl, ownerPid, previous: current, at: new Date().toISOString() }, null, 2)
     );
     psRun(
       [
@@ -96,6 +98,25 @@ class SystemProxy {
       ].join('\n')
     );
     return { applied: true, reason: 'set', previous: current };
+  }
+
+  /**
+   * 快照里记的那个进程还在不在。
+   * 被强杀（TerminateProcess）时进程没机会还原，系统里就会留一个指向死端口的 PAC；
+   * 浏览器拿不到 PAC 只能全走直连，等于把用户原本的代理绕掉了 —— 必须能自愈。
+   * @returns {boolean} true = 记录里的进程已经没了（该还原）
+   */
+  ownerDead() {
+    try {
+      const snap = JSON.parse(fs.readFileSync(this.stateFile, 'utf8'));
+      const pid = Number(snap.ownerPid || 0);
+      if (!pid) return false; // 说不清归属就不动，免得误清掉别人正在用的接管
+      process.kill(pid, 0); // 不抛异常 = 还活着
+      return false;
+    } catch (err) {
+      // ESRCH = 进程不存在；其它错误（权限等）保守处理，不动
+      return err && err.code === 'ESRCH';
+    }
   }
 
   /**

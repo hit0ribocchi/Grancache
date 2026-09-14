@@ -80,6 +80,9 @@ function prepareHome() {
   cfg.prewarmHosts = [];
   cfg.hostAliases = {};
   cfg.upstream = { mode: 'direct', host: '127.0.0.1', port: 0 };
+  // 测试绝不碰用户真实的系统代理设置：这里的代理是被直接 kill 的，
+  // 没有 --stop 那条还原路径，一旦接管就会把 PAC 留在系统里
+  cfg.systemProxy = false;
   fs.writeFileSync(path.join(tmp, 'config.json'), JSON.stringify(cfg, null, 2));
 }
 
