@@ -8,8 +8,8 @@ build/bundle.js
 build/sea-prep.blob
 build/rcedit.exe
 
-# 前端依赖（npm --prefix ui install 重装）
-ui/node_modules/
+# 依赖（npm install 重装）
+node_modules/
 
 # 系统与编辑器
 Thumbs.db

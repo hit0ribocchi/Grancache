@@ -1,0 +1,5 @@
+{
+  "name": "grancache-app",
+  "private": true,
+  "main": "main.js"
+}

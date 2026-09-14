@@ -42,7 +42,8 @@
 要求：Windows 10/11、Node ≥ 22、Chrome。
 
 ```powershell
-npm start        # 打开控制面板
+npm start        # 打开控制面板（浏览器窗口）
+npm run app      # 桌面应用外壳（Electron，需要先 npm install）
 npm run serve    # 只跑代理
 npm test         # 全量测试
 npm run build    # 打包成 Grancache.exe

@@ -8,6 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "app": "electron app",
     "start": "node src/main.js",
     "serve": "node src/main.js --serve",
     "panel": "node src/main.js --panel",
@@ -22,5 +23,8 @@
     "bench": "node tools/bench.mjs",
     "migrate": "node scripts/migrate.mjs",
     "import": "node scripts/import.mjs"
+  },
+  "devDependencies": {
+    "electron": "^44.3.0"
   }
 }
