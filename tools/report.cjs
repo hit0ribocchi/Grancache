@@ -24,7 +24,8 @@ const sessionIdx = args.indexOf('--session');
 const wantSession = sessionIdx >= 0 ? args[sessionIdx + 1] : null;
 
 function defaultFile() {
-  const dir = path.join(ROOT, 'logs');
+  // 日志在 runtime\logs 下（2026-09 的重构把运行期数据都收进了 runtime\）
+  const dir = path.join(ROOT, 'runtime', 'logs');
   const today = path.join(dir, `events-${new Date().toISOString().slice(0, 10)}.jsonl`);
   if (fs.existsSync(today)) return today;
   const all = fs.existsSync(dir)
@@ -39,7 +40,7 @@ function defaultFile() {
 
 const file = fileIdx >= 0 ? path.resolve(args[fileIdx + 1]) : defaultFile();
 if (!file || !fs.existsSync(file)) {
-  console.error('找不到事件文件（先让代理跑一次，会生成 logs\\events-YYYY-MM-DD.jsonl）');
+  console.error('找不到事件文件（先让代理跑一次，会生成 runtime\\logs\\events-YYYY-MM-DD.jsonl）');
   process.exit(2);
 }
 

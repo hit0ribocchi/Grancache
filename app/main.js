@@ -220,6 +220,13 @@ function createWindow(url) {
     if (shot) {
       setTimeout(async () => {
         try {
+          // 尽量装下整页：截完就退出，临时放大窗口不会影响正常使用
+          const full = await win.webContents.executeJavaScript('document.body.scrollHeight + 40');
+          if (Number.isFinite(full) && full > 200) {
+            const b = win.getBounds();
+            win.setBounds({ x: b.x, y: 0, width: b.width, height: Math.min(2400, Math.round(full)) });
+            await new Promise((r) => setTimeout(r, 900));
+          }
           const img = await win.webContents.capturePage();
           fs.writeFileSync(shot, img.toPNG());
           log(`[shot] 窗口截图已保存：${shot}`);
