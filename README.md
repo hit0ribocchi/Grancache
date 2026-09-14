@@ -1,101 +1,81 @@
 # Grancache
 
-> 碧蓝幻想（Granblue Fantasy）的本地素材缓存代理，带图形控制面板。
->
-> A local asset cache proxy for Granblue Fantasy with a GUI control panel. **Windows only.**
+> 碧蓝幻想（Granblue Fantasy）的本地素材缓存代理，带图形控制面板。仅支持 Windows。
 
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![node](https://img.shields.io/badge/node-%E2%89%A522-339933)
 ![release](https://img.shields.io/github/v/release/hit0ribocchi/Grancache?color=0078D4)
 ![downloads](https://img.shields.io/github/downloads/hit0ribocchi/Grancache/total?color=0078D4)
-![last-commit](https://img.shields.io/github/last-commit/hit0ribocchi/Grancache?color=0078D4)
-![repo-size](https://img.shields.io/github/repo-size/hit0ribocchi/Grancache?color=0078D4)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
 ## 特性
 
-- **素材缓存**：重复加载的素材由本机直接返回，不再回源
-- **魔改覆盖**：`原名_ap.后缀` 放进缓存目录即优先返回，清缓存也会保留
-- **图形控制面板**：开关缓存，或一键启动缓存 + Chrome + 游戏
-- **可观测**：命中率、缓存占用、实时日志，`npm run report` 给出「先 MISS 后 HIT」「从未命中」等追踪；日志按轮归档，上一轮自动进 `prev\`（默认留 10 轮）
+- 素材缓存：重复加载的素材由本机直接返回，不再回源
+- 魔改覆盖：`原名_ap.后缀` 放进缓存目录即优先返回
+- 图形面板：开关缓存、一键启动、实时命中率与日志
+- 命中追踪：`npm run report` 列出未命中原因与命中率
 
 ## 快速开始
 
-从 [Releases](../../releases) 下载 `Grancache.exe`（也可以自己构建，见 [从源码构建](#从源码构建)），放到一个固定目录 —— 运行期数据会生成在同目录的 `runtime\` 下。然后任选一种方式启动：
+从 [Releases](../../releases) 下载 `Grancache.exe`，放到任意目录，任选一种方式启动：
 
-**方式一 · 双击 exe（图形面板）**
+- **双击** → 打开控制面板，点「一键启动（缓存 + Chrome + 游戏）」；
+- **命令行** → `Grancache.exe --play` 起缓存并进游戏，`Grancache.exe --panel` 只打开面板。
 
-双击 `Grancache.exe` 打开控制面板，点 **「一键启动（缓存 + Chrome + 游戏）」** 即可。
-
-**方式二 · 命令行**
-
-```powershell
-Grancache.exe --play     # 起缓存 + 打开 Chrome 进游戏
-Grancache.exe --panel    # 只打开控制面板
-```
-
-源码模式（不打包 exe）用 `npm start` / `npm run serve`；全部参数见 [命令行](#命令行)。
-
-首次运行会自动生成本地 CA 并装进 **「当前用户 → 受信任的根证书颁发机构」**（无需管理员权限）。关掉自动信任：设 `"autoTrustCa": false`；完全恢复：`scripts\untrust.ps1` 加删除 `runtime\certs`。
+首次运行会自动生成并信任本地 CA，不需要管理员权限。
 
 ## 命令行
 
 | 命令 | 作用 |
 |---|---|
-| `Grancache.exe` | 打开控制面板（双击即此） |
-| `Grancache.exe --play` | 确保缓存在跑 + 打开 Chrome 进游戏 |
-| `Grancache.exe --stop` | 停止后台代理（有 pid 归属校验，不会误杀） |
-| `Grancache.exe --clear-cache` | 清空素材缓存（保留 `_ap` 魔改文件） |
-| `Grancache.exe --serve` / `--daemon` | 只跑缓存代理（前台带日志 / 后台无窗口） |
-| `Grancache.exe --port=18080` | 换代理端口（统计端口 = 端口 + 1） |
-| `Grancache.exe --help` | 查看全部选项 |
+| `Grancache.exe` | 打开控制面板 |
+| `--play` | 起缓存 + 打开 Chrome 进游戏 |
+| `--stop` | 停止后台代理 |
+| `--clear-cache` | 清空素材缓存 |
+| `--serve` / `--daemon` | 只跑缓存代理（前台 / 后台） |
+| `--port=18080` | 换端口 |
+| `--help` | 查看全部选项 |
 
 ## 从源码构建
 
-要求：Windows 10/11、**Node ≥ 22**（打包 exe 用 24）、Chrome。缓存代理本体不依赖任何第三方 npm 包。
+要求：Windows 10/11、Node ≥ 22、Chrome。
 
 ```powershell
-git clone https://github.com/hit0ribocchi/Grancache.git
-cd Grancache
-
-npm start            # 打开控制面板（源码模式）
-npm run serve        # 只跑代理（前台，看日志）
-npm test             # 全量测试（unit / verify / migrate / trace / panel / e2e）
-
-npm run build        # 打包成 Grancache.exe（Node SEA；需要联网拉 postject/rcedit）
-npm run ui           # 改了面板界面后重建（首次需 npm --prefix ui install）
+npm start        # 打开控制面板
+npm run serve    # 只跑代理
+npm test         # 全量测试
+npm run build    # 打包成 Grancache.exe
+npm run ui       # 重建面板界面
 ```
 
 ## 文档
 
-- [**docs/usage.md**](docs/usage.md) —— 使用说明：工作原理、缓存目录、全部配置项、日志与调优、常见问题、迁移与导入
+- [docs/usage.md](docs/usage.md) —— 配置项、日志与调优、常见问题、迁移
 - [docs/plan-acgpower-cache-mvp.md](docs/plan-acgpower-cache-mvp.md) —— 设计与实施记录
 
 ## 常见问题
 
-- **想看看哪些素材没命中？** `npm run report` 会列出「先 MISS 后 HIT」「从未命中」和每条未命中原因。
-- **魔改文件放了没生效？** 浏览器自己那份缓存会先命中，放好文件后在游戏里按一次 **Ctrl+F5**。
-- **Chrome 必须先退出？** 是。Chrome 只在启动那一刻读代理设置，请完全退出（含托盘）再点「一键启动」。
+- **魔改文件没生效？** 浏览器缓存会先命中，放好后在游戏里按一次 **Ctrl+F5**。
+- **Chrome 必须先退出？** 是，Chrome 只在启动时读代理设置。
+- **想看哪些素材没命中？** 跑 `npm run report`。
 
 ## 已知问题
 
-- 只加速素材，不会降低战斗 / 界面的延迟。
-- 首次进游戏仍需联网下载素材；缓存包可以跨机器拷贝。
+- 只加速素材，不降低战斗与界面的延迟。
+- 首次进游戏仍需联网下载素材。
 
 ## 安全与隐私
 
-- 代理需要在本机解开 HTTPS（MITM）—— 这是缓存素材的前提。CA 只装在你自己的 Windows 账户下，**私钥在 `runtime\certs\`，不要外传**（已 gitignore，绝不入库）。
-- **账号数据不缓存**：动态接口与账号相关响应一律原样透传。
-- **日志脱敏**：`uid` / `token` / `session` 等查询参数的值掩码为 `***`；Cookie、Authorization、请求体从不记录。
-- 面板的本地服务只监听 `127.0.0.1`，写操作需要一次性令牌。
-- 魔改只改你本地看到的画面，不改变发往服务器的请求；是否使用请自行判断风险。
+- CA 私钥在 `runtime\certs\`，只装在你自己的 Windows 账户下，不要外传；不用了跑 `scripts\untrust.ps1` 并删除该目录。
+- 动态接口与账号相关响应一律原样透传，不缓存。
+- 日志中 `uid` / `token` / `session` 等参数值掩码为 `***`；Cookie、Authorization、请求体不记录。
+- 面板只监听 `127.0.0.1`，写操作需要一次性令牌。
 
 ## 致谢
 
-- **ACGPower**：路径镜像 + `.ext` 元数据 + `_ap` 魔改约定的参考（按公开行为分析实现，未使用其代码）。
-- **nginx** `proxy_cache`：`inactive` 闲置淘汰与 `use_stale` 的语义参考。
-- **太郎（Tarou）** 插件：素材域名补丁脚本（`scripts\patch.ps1`）。
+- **ACGPower**：路径镜像、`.ext` 元数据与 `_ap` 魔改约定的参考。
+- **nginx** `proxy_cache`：`inactive` 与 `use_stale` 语义参考。
 
 ## 许可
 
-本项目以 [MIT 许可证](LICENSE) 开源。
+[MIT](LICENSE)
