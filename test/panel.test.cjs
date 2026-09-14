@@ -44,6 +44,7 @@ cfg.keepWarmSeconds = 0;
 cfg.keepWarmHosts = [];
 cfg.prewarmHosts = [];
 cfg.upstream = { mode: 'direct', host: '127.0.0.1', port: 0 };
+cfg.systemProxy = false; // 测试绝不碰用户真实的系统代理设置
 fs.writeFileSync(path.join(tmp, 'config.json'), JSON.stringify(cfg, null, 2));
 
 function req(method, pathname, { token, body } = {}) {

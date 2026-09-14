@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outFile = path.resolve(process.argv[2] || path.join(projectDir, 'build', 'bundle.js'));
 
-const modules = ['src/cache.js', 'src/certs.js', 'src/panel/server.js', 'src/policy.js', 'src/upstream.js'];
+const modules = ['src/cache.js', 'src/certs.js', 'src/panel/server.js', 'src/policy.js', 'src/systemproxy.js', 'src/upstream.js'];
 
 const chunks = [];
 chunks.push(`'use strict';

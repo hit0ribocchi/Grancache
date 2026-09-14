@@ -48,6 +48,7 @@ const { PathCache, HOP_BY_HOP, isAllZero, shouldStoreBody, isOverridePath } = re
 const { createPanel } = require('./panel/server');
 const { CertStore } = require('./certs');
 const { Upstream } = require('./upstream');
+const { SystemProxy } = require('./systemproxy');
 const policy = require('./policy');
 
 const argPort = process.argv.find((a) => a.startsWith('--port='));
@@ -80,6 +81,8 @@ const isSea = (() => {
 // 显式给 --serve / --daemon / --port=… / --stop / --clear-cache / --help 时，照旧走命令行模式。
 const PANEL_ONLY = process.argv.includes('--panel-only'); // 只起面板服务、不开窗口（自动化测试用）
 const PLAY_FLAG = process.argv.includes('--play'); // 一键启动：确保缓存在跑 + 用带缓存的配置打开 Chrome
+// 单独接管/还原系统代理：--system-proxy=on / --system-proxy=off
+const SYSPROXY_ARG = process.argv.find((a) => a.startsWith('--system-proxy=')) || null;
 const panelOthers = process.argv.slice(2).filter((a) => a !== '--play' && !a.startsWith('--panel'));
 
 const MODE = process.argv.includes('--stop')
@@ -88,7 +91,9 @@ const MODE = process.argv.includes('--stop')
     ? 'clear'
     : process.argv.includes('--help')
       ? 'help'
-      : PLAY_FLAG
+      : SYSPROXY_ARG
+        ? 'sysproxy'
+        : PLAY_FLAG
         ? 'play'
         : panelOthers.length === 0 || PANEL_ONLY || process.argv.includes('--panel')
           ? 'panel'
@@ -414,6 +419,7 @@ const stats = {
   missNoStore: 0,
   missFirst: 0,   // 本地压根没有：这个素材是第一次见到
   missCached: 0,  // 本机有对象但用不了（expired/size-mismatch/all-zero…）—— 缓存没生效的才是这个
+  otherHosts: 0,  // 非碧蓝幻想域名：只隧道放行，不碰（限定范围的护栏生效次数）
   stale: 0,
   bytesFromCache: 0,
   bytesFromNetwork: 0,
@@ -524,6 +530,21 @@ function writeApiDump(target, status, headers, body) {
 
 // 上游出口：不启用 TUN/全局路由时，请求交给本机代理软件的端口，由它按规则决定走节点还是直连
 const upstream = new Upstream(config.upstream || {});
+
+// 系统代理（PAC）：让"已经开着的浏览器"也走缓存。原值快照存在 runtime 下，
+// --stop / 下次启动都能还原（详见 src/systemproxy.js）。
+const systemProxy = new SystemProxy({ stateFile: abs('runtime/system-proxy.json') });
+const pacUrl = () => `http://127.0.0.1:${STATS_PORT}/proxy.pac`;
+
+/** 还原系统代理，失败也不抛（退出路径上不能因为这一步卡住） */
+function restoreSystemProxyQuietly() {
+  try {
+    const r = systemProxy.restore();
+    if (r.restored) log('[stop] 已还原系统代理设置');
+  } catch {
+    /* 还原失败就留着快照，下次启动会再试 */
+  }
+}
 
 function makeAgent(protocol, rejectUnauthorized) {
   const AgentClass = protocol === 'https:' ? https.Agent : http.Agent;
@@ -1606,9 +1627,12 @@ proxyServer.on('connect', (req, clientSocket, head) => {
   clientSocket.setNoDelay(true);
   clientSocket.on('error', () => {});
 
-  // 非 443 端口：原样打隧道，不做中间人也不缓存。
-  // 碧蓝幻想的 WebSocket（ws.game.granbluefantasy.jp:11240，连队聊天/协同）走这里。
-  if (port !== 443) {
+  // 原样打隧道（不做中间人、不缓存）的两种情形：
+  //   1) 非 443 端口 —— 碧蓝幻想的 WebSocket（ws.game.granbluefantasy.jp:11240）走这里；
+  //   2) 不是碧蓝幻想的域名 —— 这是"限定范围"的护栏：万一有别的东西指到了本代理，
+  //      也只隧道放行，绝不解密、不缓存、不记录内容。
+  const nonGbf = !policy.isGbfHost(host, config);
+  if (port !== 443 || nonGbf) {
     const tTunnel = Date.now();
     upstream
       .connect(host, port)
@@ -1620,8 +1644,13 @@ proxyServer.on('connect', (req, clientSocket, head) => {
         upstreamSocket.on('error', () => clientSocket.destroy());
         clientSocket.on('close', () => upstreamSocket.destroy());
         stats.tunnels++;
+        if (nonGbf) stats.otherHosts++;
         // 隧道打通耗时 = 上游建连耗时。WebSocket 断了要重连，这里能看出是不是很慢
-        log('TUNNEL', `${host}:${port}`, `| conn=${Date.now() - tTunnel}`);
+        log(
+          'TUNNEL',
+          `${host}:${port}`,
+          `| conn=${Date.now() - tTunnel}${nonGbf ? ' 非 GBF 域名，仅放行' : ''}`
+        );
       })
       .catch((err) => {
         stats.errors++;
@@ -1719,14 +1748,19 @@ function buildPac() {
   const blocked = (config.blockHostPatterns || [])
     .map((p) => `  if (shExpMatch(host, '${p}')) return 'PROXY 127.0.0.1:9';\n`)
     .join('');
+  // 碧蓝幻想的域名规则和 policy.js 共用一份，避免 PAC 与"要不要解包"两处走偏
+  const gbf = (policy.GBF_HOST_PATTERNS || [])
+    .map((p) =>
+      p.includes('*')
+        ? `  if (shExpMatch(host, '${p}')) return P;`
+        : `  if (host === '${p}' || dnsDomainIs(host, '.${p}')) return P;`
+    )
+    .join('\n');
   return `function FindProxyForURL(url, host) {
   var P = 'PROXY 127.0.0.1:${LISTEN_PORT}; DIRECT';
 ${blocked}  // 127.0.0.1:9 是丢弃端口，连不上会立刻失败，不用干等超时
-  if (host === 'granbluefantasy.jp' || dnsDomainIs(host, '.granbluefantasy.jp')) return P;
-  if (dnsDomainIs(host, '.mbga.jp') || dnsDomainIs(host, '.mobage.jp')) return P;
-  if (dnsDomainIs(host, '.granbluefantasy.com') || dnsDomainIs(host, '.cygames.jp')) return P;
-  if (shExpMatch(host, 'prd-game-*.akamaized.net')) return P;
-  if (shExpMatch(host, '*.gbf.game.mbga.jp')) return P;
+${gbf}
+  // 其它流量原样交回原来的出口（本机代理软件的端口，或直连）——不影响别的应用
   return '${rest}';
 }
 `;
@@ -1799,6 +1833,7 @@ const statsServer = http.createServer((req, res) => {
     stored: stats.stored,
     revalidations: stats.revalidations,
     tunnels: stats.tunnels,
+    otherHosts: stats.otherHosts,
     aliased: stats.aliased,
     errors: stats.errors,
     overrides: stats.overrides,
@@ -2096,6 +2131,13 @@ async function stopMode() {
   try {
     process.kill(pid);
     removePidFile();
+    // 代理是被强杀的，它自己没机会还原系统代理；由"停它的这一方"来收尾
+    try {
+      const r = systemProxy.restore();
+      if (r.restored) console.log('已还原系统代理设置。');
+    } catch (err) {
+      console.log(`还原系统代理失败（可手动跑 --system-proxy=off）：${err.message}`);
+    }
     console.log(`已停止缓存代理（进程 ${pid}）。`);
   } catch (err) {
     removePidFile();
@@ -2166,6 +2208,9 @@ function helpMode() {
   --port=18080   换监听端口（统计端口自动取 端口+1）
   --play         一键启动：后台起代理 + 用带缓存的配置打开 Chrome 和游戏（= 面板里的“一键启动”）
   --panel        打开控制面板（图形界面：一键启动 / 只开关缓存 / 清缓存 / 看日志）
+  --system-proxy=on   接管系统代理（PAC），让"已经开着"的浏览器也走缓存；
+                      只分流碧蓝幻想域名，其它流量原样交回原来的出口
+  --system-proxy=off  还原系统代理设置（--stop 时会自动还原）
   --panel-only   只启动面板服务，不自动打开窗口（调试用）
   --panel-port=18082  换面板端口
 
@@ -2212,6 +2257,18 @@ async function main() {
   });
   statsServer.listen(STATS_PORT, LISTEN_HOST, () => {
     log(`[start] 统计页 http://${LISTEN_HOST}:${STATS_PORT}/`);
+    // 系统代理：让"已经开着的浏览器"也走缓存。
+    // PAC 只把碧蓝幻想的域名指到这里，其它流量照旧交回原来的出口 —— 不影响别的应用。
+    if (config.systemProxy !== false) {
+      try {
+        // 上次可能被强杀，没来得及还原；先还原再接管，避免把旧 PAC 留在系统里
+        if (systemProxy.isApplied()) systemProxy.restore();
+        systemProxy.apply(pacUrl());
+        log('[proxy] 已接管系统代理（PAC）：已经开着的浏览器也会走缓存，--stop 时自动还原');
+      } catch (err) {
+        log('WARN', `[proxy] 接管系统代理失败（不影响本机缓存）：${err.message}`);
+      }
+    }
   });
 
   if ((config.keepWarmSeconds || 0) > 0) {
@@ -2296,11 +2353,16 @@ statsServer.on('error', (err) => {
 
 process.on('SIGINT', () => {
   log('[stop] 收到中断信号，退出');
+  if (MODE === 'serve') restoreSystemProxyQuietly();
   removePidFile();
   process.exit(0);
 });
 
-process.on('exit', () => removePidFile());
+process.on('exit', () => {
+  // 只有代理自己退出才还原：面板/一键启动这些短命进程退出时不能动系统代理
+  if (MODE === 'serve') restoreSystemProxyQuietly();
+  removePidFile();
+});
 
 if (MODE === 'play') {
   playMode()
@@ -2329,6 +2391,25 @@ if (MODE === 'play') {
     port: argPanelPort ? Number(argPanelPort.split('=')[1]) : undefined,
     openWindow: !PANEL_ONLY,
   });
+} else if (MODE === 'sysproxy') {
+  const on = /on$/i.test(SYSPROXY_ARG);
+  try {
+    if (on) {
+      const r = systemProxy.apply(pacUrl());
+      console.log(
+        r.reason === 'already'
+          ? '系统代理已经在接管中。'
+          : '已接管系统代理：已经开着的浏览器也会走缓存（PAC 只分流碧蓝幻想域名，其它流量照旧）。'
+      );
+    } else {
+      const r = systemProxy.restore();
+      console.log(r.restored ? '已还原系统代理设置。' : '系统代理本来就没被接管。');
+    }
+  } catch (err) {
+    console.error('操作失败：' + err.message);
+    process.exitCode = 1;
+  }
+  process.exit(process.exitCode || 0);
 } else {
   main().catch((err) => {
     console.error('启动失败：', err.message);

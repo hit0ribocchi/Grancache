@@ -437,6 +437,31 @@ export default function App() {
                   用记事本打开日志
                 </Button>
               </Flex>
+
+              <Divider style={{ margin: '2px 0' }}>让已经开着的浏览器也走缓存</Divider>
+
+              <Flex gap={10} wrap="wrap" align="center">
+                {status?.systemProxy?.applied ? (
+                  <Button
+                    loading={busyWith('system-proxy-off')}
+                    onClick={() => run('system-proxy-off', '还原系统代理')}
+                  >
+                    还原系统代理设置
+                  </Button>
+                ) : (
+                  <Button
+                    type="primary"
+                    ghost
+                    loading={busyWith('system-proxy-on')}
+                    onClick={() => run('system-proxy-on', '接管系统代理')}
+                  >
+                    接管系统代理
+                  </Button>
+                )}
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  PAC 只分流碧蓝幻想域名，其它流量照旧走原来的出口
+                </Text>
+              </Flex>
             </Space>
           </Card>
         </Col>
@@ -466,6 +491,16 @@ export default function App() {
               <Descriptions.Item label="完整性校验 / 布局">
                 {st ? `${st.cache.verifyIntegrity ? '开' : '关'} / ${st.cache.layout}` : '—'}
               </Descriptions.Item>
+              <Descriptions.Item label="非 GBF 域名放行">
+                {st ? `${st.otherHosts ?? 0} 次（只隧道，不解密不缓存）` : '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="系统代理">
+                {status?.systemProxy?.applied ? (
+                  <Tag color="green" style={{ marginRight: 0 }}>已接管 · 未重启的浏览器也走缓存</Tag>
+                ) : (
+                  <Tag style={{ marginRight: 0 }}>未接管</Tag>
+                )}
+              </Descriptions.Item>
             </Descriptions>
           </Card>
 
@@ -479,6 +514,9 @@ export default function App() {
             </Paragraph>
             <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 6 }}>
               · 素材第一次加载必然是「回源」，第二次才可能命中——刚清完缓存或刚更新的那一轮命中率天然偏低
+            </Paragraph>
+            <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 6 }}>
+              · <b>只抓碧蓝幻想</b>：只有碧蓝幻想的域名会被解密并缓存，其它域名一律原样隧道放行（「非 GBF 域名放行」那一行就是它）
             </Paragraph>
             <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 0 }}>
               · 魔改素材：把文件命名为 <Text code>原名_ap.后缀</Text> 放进缓存目录对应路径，进游戏 Ctrl+F5 一次

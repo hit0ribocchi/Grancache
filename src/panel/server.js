@@ -212,6 +212,16 @@ function createPanel(opts) {
       await runProxy(['--clear-cache'], { wait: true });
       return { message: '缓存已清空（_ap 魔改文件保留）' };
     },
+    // 系统代理（PAC）：接管后"已经开着的浏览器"也会走缓存；
+    // 只分流碧蓝幻想域名，其它流量原样交回原来的出口
+    'system-proxy-on': async () => {
+      await runProxy(['--system-proxy=on'], { wait: true });
+      return { message: '已接管系统代理：未重启的浏览器也会走缓存' };
+    },
+    'system-proxy-off': async () => {
+      await runProxy(['--system-proxy=off'], { wait: true });
+      return { message: '已还原系统代理设置' };
+    },
     'open-stats': async () => {
       openInShell(`http://127.0.0.1:${statsPort}/`);
       return { message: '已打开统计页' };
@@ -252,6 +262,11 @@ function createPanel(opts) {
           panel: { port, uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000) },
           proxy: { running: !!stats, pid: stats ? stats.pid : null, stats },
           paths: { root, cacheDir: config.cacheDir, logFile, panelAssets: assets.source },
+          // 系统代理（PAC）状态：接管后"已经开着的浏览器"也会走缓存
+          systemProxy: {
+            applied: fs.existsSync(path.join(root, 'runtime', 'system-proxy.json')),
+            supported: config.systemProxy !== false,
+          },
         })
       );
     }

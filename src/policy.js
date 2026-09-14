@@ -86,6 +86,26 @@ function isAssetHost(host, config) {
   return (config.assetHostPatterns || []).some((p) => hostMatches(host, p));
 }
 
+// 碧蓝幻想相关域名：PAC 分流 与 是否解包(MITM) 共用这一份规则。
+// 只有这些域名会被解密/缓存，其它域名一律原样隧道 —— 限定范围，不碰别的应用。
+const GBF_HOST_PATTERNS = [
+  'granbluefantasy.jp',
+  '*.granbluefantasy.jp',
+  '*.granbluefantasy.com',
+  '*.granbluefantasy.akamaized.net',
+  'prd-game-*.akamaized.net',
+  '*.mbga.jp',
+  '*.mobage.jp',
+  '*.cygames.jp',
+  '*.cygames.com',
+];
+
+function isGbfHost(host, config) {
+  if (!host) return false;
+  if (isAssetHost(host, config)) return true;
+  return GBF_HOST_PATTERNS.some((p) => hostMatches(host, p));
+}
+
 /**
  * @returns {{store: boolean, ttlSeconds: number, reason: string}}
  */
@@ -385,6 +405,8 @@ module.exports = {
   isPassthroughHost,
   hostMatches,
   isAssetHost,
+  isGbfHost,
+  GBF_HOST_PATTERNS,
   decideStore,
   isStaticAsset,
   normalizeCacheUrl,

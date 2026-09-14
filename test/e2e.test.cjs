@@ -164,6 +164,8 @@ fs.writeFileSync(
       optionsPreflightEnable: true,
       optionsPreflightMaxAge: 604360,
       logMinLevel: 'DEBUG',
+      // 测试绝不碰用户真实的系统代理设置
+      systemProxy: false,
       // 本轮新增的残留风险修复开关（测试里把窗口/周期调小以便观察）
       staleIfErrorSeconds: 60,
       retryOn5xx: true,

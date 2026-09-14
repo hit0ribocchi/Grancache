@@ -17,6 +17,8 @@ Grancache 在你本机跑一个 HTTPS 缓存代理，Chrome 通过它访问游�
 - **为什么要 MITM**：只有解开 HTTPS、看清请求 URL，才能按路径缓存素材。Grancache 用本机 CA 现场签发证书，出站请求仍交给本机已有的网络出口，不需要改动你的网络设置。
 - **出口怎么定**：默认 `upstream.mode = "auto"`，会探测本机常见代理端口；探测到就用它做 CONNECT 隧道 / socks5，探不到就直连。也可以显式指定 `host`/`port`，或写死 `mode: "direct"`（例如已开 TUN）。
 - **只缓存该缓存的**：素材主机（`assetHostPatterns`）按本机策略长缓存；动态接口（`/rest/`、`.json`、`.html`、带 `Set-Cookie`）一律透传。
+- **只碰碧蓝幻想**：只有碧蓝幻想的域名会被解密并缓存（`granbluefantasy.jp`、`*.mbga.jp`、`prd-game-*.akamaized.net` 等，见 `src/policy.js` 的 `GBF_HOST_PATTERNS`）；**其它域名一律原样隧道放行**，不解密、不缓存、不记录内容，面板上「非 GBF 域名放行」那一行就是它的计数。
+- **让已经开着的浏览器也生效**：只给启动的那个 Chrome 加代理参数是不够的（已经开着的浏览器不知道有代理）。开启 `systemProxy`（默认开）后，Grancache 会把 **Windows 系统代理的 PAC** 指向自己，于是所有读系统代理设置的浏览器都会按 PAC 分流——GBF 域名走本地缓存，其它流量照旧交回原来的出口。应用前的原值会快照到 `runtime/system-proxy.json`，`--stop` / 退出时自动还原；只动 `AutoConfigURL` 一个值，不碰 `ProxyEnable` / `ProxyServer`。
 
 ## 缓存目录
 
@@ -43,6 +45,8 @@ Grancache 在你本机跑一个 HTTPS 缓存代理，Chrome 通过它访问游�
 | `Grancache.exe --stop` | 停止后台代理（有 pid 归属校验，不会误杀） |
 | `Grancache.exe --clear-cache` | 清空素材缓存（保留 `_ap` 魔改文件） |
 | `Grancache.exe --panel` / `--panel-only` / `--panel-port=18082` | 起面板（开窗口 / 不开窗口 / 换端口） |
+| `Grancache.exe --system-proxy=on` | 接管系统代理（PAC）：让已经开着的浏览器也走缓存（只分流碧蓝幻想域名） |
+| `Grancache.exe --system-proxy=off` | 还原系统代理设置（`--stop` 时也会自动还原） |
 | `Grancache.exe --port=18080` | 换代理端口（统计端口自动 = 端口 + 1） |
 | `Grancache.exe --help` | 查看全部选项 |
 
@@ -57,6 +61,7 @@ Grancache 在你本机跑一个 HTTPS 缓存代理，Chrome 通过它访问游�
 | `expireMode` / `revalidateAfterSeconds` | `immortal` / `0` | 永久缓存 / 到期后台条件校验 |
 | `verifyIntegrity` | `false` | 命中时按 md5 校验（更安全、略慢） |
 | `autoTrustCa` | `true` | 首次运行自动生成并信任本地 CA |
+| `systemProxy` | `true` | 启动代理时接管系统代理（PAC），让已开着的浏览器也走缓存；`false` 则只对命令行启动的 Chrome 生效 |
 | `overrideEnable` / `optionsPreflightEnable` | `true` | 魔改层 / OPTIONS 本地应答 |
 | `staleIfErrorSeconds` / `retryOn5xx` | `0` / `true` | 旧副本顶替窗口 / 网关错误单次重试 |
 | `inactiveDays` | `0` | 闲置淘汰（nginx `inactive` 语义，0 = 关） |

@@ -7,6 +7,7 @@
   "maxObjectMB": 64,
   "verifyIntegrity": false,
   "autoTrustCa": true,
+  "systemProxy": true,
   "browserMaxAgeSeconds": 300,
   "aliasBrowserMaxAgeSeconds": 604800,
   "cacheKeyStripQueryParams": ["_", "t", "uid"],
