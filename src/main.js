@@ -3,7 +3,7 @@
 /**
  * GBF 本地缓存代理
  * ------------------------------------------------------------------
- * 浏览器 --(HTTP 代理)--> 本进程 --(TUN / 系统路由)--> 0dcloud --> 节点
+ * 浏览器 --(HTTP 代理)--> 本进程 --(你的网络出口 / 本机代理)--> 节点
  *
  * 做的事：
  *   1. 用本地 CA 现场签发证书，解开 HTTPS（MITM），这样才能看到并缓存素材
@@ -239,10 +239,18 @@ function maskSensitive(value) {
 }
 
 function log(...parts) {
-  const first = String(parts[0] || '');
-  const level = levelFor(first);
+  // 允许 log('WARN', ...) 这样显式指定级别：把级别从正文里摘掉，以它为准。
+  let first = String(parts[0] || '');
+  const explicit = LEVEL_ORDER[first.toUpperCase()] ? first.toUpperCase() : null;
+  if (explicit) {
+    parts = parts.slice(1);
+    first = String(parts[0] || '');
+  }
+  const level = explicit || levelFor(first);
   if ((LEVEL_ORDER[level] || 10) < LOG_MIN_LEVEL) return;
-  const line = `${new Date().toISOString()} ${level} ${maskSensitive(parts.join(' '))}`;
+  // 一条事件必须占一行：异常栈 / 子进程 stderr 常带换行，折成空格，
+  // 免得后续行没有级别前缀，破坏「按级别 grep」和日志校验。
+  const line = `${new Date().toISOString()} ${level} ${maskSensitive(parts.join(' ')).replace(/[\r\n]+/g, ' ')}`;
   try {
     const kind = /^(HIT-304|HIT|STALE|MISS-NOSTORE|MISS->STORE|MISS-TOOBIG|OVERRIDE|OPTIONS-HIT|RETRY-5XX|BYPASS-FASTFAIL|BYPASS|TUNNEL-FAIL|TUNNEL|UPSTREAM-ERROR|STORE-ERROR|REVALIDATED-304|REVALIDATED-NEW)/.exec(first);
     if (kind) {
@@ -370,7 +378,7 @@ function timelineOf(obj) {
 
 // ---- 在途请求计数：判断"这一刻有多少请求挤在一起" ----
 //
-// 这是排查卡顿最关键的上下文。实测发现 0dcloud 出口对短时间高频建连有限速：
+// 这是排查卡顿最关键的上下文。实测发现部分网络出口对短时间高频建连有限速：
 // 连续发 6 次，时延从 240ms 单调爬到 1900ms，停 3 秒就恢复。
 // 所以想知道"某次卡是不是因为并发太高"，就必须记下当时的并发数。
 let inFlight = 0;
@@ -483,7 +491,7 @@ function writeApiDump(target, status, headers, body) {
 
 // ---------------------------------------------------------------- 上游连接
 
-// 上游出口：TUN 关掉时，请求要交给 0dcloud 的本机端口，由它按规则决定走节点还是直连
+// 上游出口：不启用 TUN/全局路由时，请求交给本机代理软件的端口，由它按规则决定走节点还是直连
 const upstream = new Upstream(config.upstream || {});
 
 function makeAgent(protocol, rejectUnauthorized) {
@@ -506,7 +514,7 @@ function makeAgent(protocol, rejectUnauthorized) {
     const host = options.host || options.hostname;
     const port = options.port;
     // 这里只有"真的要新建连接"时才会被调用 —— 复用空闲连接不会走到这里。
-    // 所以这段时间就是白付的握手成本，必须记下来：实测 0dcloud 到日服
+    // 所以这段时间就是白付的握手成本，必须记下来：实测本机出口到游戏服
     // 建连要 100-250ms，而副本内刷新会连着建几十条，正是卡顿的主要来源。
     const t0 = Date.now();
     connectingNow.add(host);
@@ -1656,7 +1664,7 @@ mitmHttp.on('upgrade', (req, socket, head) => {
 });
 
 // ---- 统计页 ----
-// PAC：GBF 相关域名走缓存代理；其余流量交给 0dcloud 的本机端口（保持你平时的分流规则），
+// PAC：GBF 相关域名走缓存代理；其余流量交给本机代理软件的端口（保持你平时的分流规则），
 // 探测不到上游时才直连。代理没启动时浏览器会退回直连，不至于整体打不开网页。
 function buildPac() {
   const rest =

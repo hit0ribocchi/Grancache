@@ -16,3 +16,6 @@ Thumbs.db
 desktop.ini
 .DS_Store
 *.log
+
+# 本地笔记与个人工作区（不入库）
+.workbuddy/

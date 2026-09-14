@@ -6,11 +6,11 @@ const tls = require('tls');
 /**
  * 上游出口。
  *
- * 为什么需要它：Node 程序默认不会走系统代理。如果 0dcloud 是"规则模式 + 系统代理"
- * （没开 TUN），缓存代理直接连出去就绕过了 0dcloud 的分流，GBF 反而连不上。
- * 所以这里把出口请求交给 0dcloud 的本机端口，由它按规则决定走节点还是直连：
+ * 为什么需要它：Node 程序默认不会走系统代理。如果本机代理软件用的是"规则模式 + 系统代理"
+ * （没开 TUN），缓存代理直接连出去就绕过了它的分流，反而连不上服务器。
+ * 所以这里把出口请求交给本机代理软件的端口，由它按规则决定走节点还是直连：
  *
- *   Chrome → 本地缓存代理 → 0dcloud(规则分流) → 节点/直连 → 服务器
+ *   Chrome → 本地缓存代理 → 本机代理软件(规则分流) → 节点/直连 → 服务器
  *
  * 支持 http（CONNECT 隧道）和 socks5 两种上游，也支持 direct（TUN 模式下的直连）。
  * mode = "auto" 时会自动探测本机常见代理端口，探不到就退回 direct。
@@ -135,7 +135,7 @@ class Upstream {
 
   noteFailure() {
     this.failures++;
-    // 上游挂了（比如 0dcloud 重启了），过一会儿重新探测
+    // 上游挂了（比如本机代理软件重启了），过一会儿重新探测
     if (this.failures >= 5 && !this.probing) {
       this.probing = this.autoDetect()
         .catch(() => this.resolved)
@@ -175,7 +175,7 @@ class Upstream {
         socket.removeAllListeners();
         socket.destroy();
         // 上游隧道建不起来，累加失败计数；连续失败会自动重探端口，
-        // 免得 0dcloud 重启/换端口之后代理一直死在旧端口上。
+        // 免得本机代理软件重启/换端口之后代理一直死在旧端口上。
         this.noteFailure();
         reject(err);
       };
