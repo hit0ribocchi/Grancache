@@ -1,6 +1,6 @@
 /**
  * 端到端测量：同一个连接上连续请求同一个素材 N 次，看缓存命中的真实每请求耗时。
- * 复用 gbf-cache-proxy/src/upstream.js 的 CONNECT 逻辑来穿过本地缓存代理。
+ * 复用 grancache/src/upstream.js 的 CONNECT 逻辑来穿过本地缓存代理。
  *
  * 用法: node tools/throughput.mjs <url> [次数]
  */

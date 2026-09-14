@@ -1,5 +1,5 @@
 /**
- * 把 gbf-cache-proxy 打成一个自包含的 JS 文件（无第三方依赖）。
+ * 把 grancache 打成一个自包含的 JS 文件（无第三方依赖）。
  * 打包成 exe 之前需要先做这一步，因为单文件运行时不能 require 其它文件。
  *
  * 用法: node tools/bundle.mjs [输出文件]

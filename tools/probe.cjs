@@ -8,7 +8,7 @@ const path = require('path');
 
 const NODE = process.execPath;
 const PORT = 18998;
-const PROJ = 'E:/GameHelper/gbf-cache-proxy';
+const PROJ = path.resolve(__dirname, '..');
 // 临时工作目录放系统临时目录，别往项目/.backup-orig 里写：
 // 证书从项目拷一份，配置按临时目录改写（缓存/日志都落在临时目录里）
 const T = fs.mkdtempSync(path.join(os.tmpdir(), 'gbf-probe-'));
@@ -25,7 +25,7 @@ fs.mkdirSync(path.join(T, 'logs'), { recursive: true });
 
 fs.rmSync(path.join(T, 'runtime', 'logs', 'proxy.log'), { force: true });
 
-const child = spawn(NODE, ['E:/GameHelper/gbf-cache-proxy/src/main.js', '--serve'], {
+const child = spawn(NODE, [path.join(PROJ, 'src', 'main.js'), '--serve'], {
   env: { ...process.env, GBF_CACHE_HOME: T },
   stdio: ['ignore', 'pipe', 'pipe'],
 });

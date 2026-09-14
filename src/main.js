@@ -571,7 +571,7 @@ function warmUp() {
           agent: httpsAgent,
           servername: host,
           rejectUnauthorized: !config.insecureUpstream,
-          headers: { 'user-agent': 'gbf-cache-proxy/keepalive', 'accept-encoding': 'gzip' },
+          headers: { 'user-agent': 'grancache/keepalive', 'accept-encoding': 'gzip' },
         },
         (res) => res.resume()
       );
@@ -716,7 +716,7 @@ function revalidateInBackground(target, key, meta, acceptEncoding) {
 
   const headers = {
     'accept-encoding': acceptEncoding || 'gzip, deflate',
-    'user-agent': 'gbf-cache-proxy/revalidate',
+    'user-agent': 'grancache/revalidate',
   };
   const etag = meta.headers && meta.headers.etag;
   const lastModified = meta.headers && meta.headers['last-modified'];
@@ -1570,7 +1570,7 @@ proxyServer.on('connect', (req, clientSocket, head) => {
     upstream
       .connect(host, port)
       .then((upstreamSocket) => {
-        clientSocket.write('HTTP/1.1 200 Connection Established\r\nProxy-agent: gbf-cache-proxy\r\n\r\n');
+        clientSocket.write('HTTP/1.1 200 Connection Established\r\nProxy-agent: grancache\r\n\r\n');
         if (head && head.length) upstreamSocket.write(head);
         clientSocket.pipe(upstreamSocket);
         upstreamSocket.pipe(clientSocket);
@@ -1587,7 +1587,7 @@ proxyServer.on('connect', (req, clientSocket, head) => {
       });
     return;
   }
-  clientSocket.write('HTTP/1.1 200 Connection Established\r\nProxy-agent: gbf-cache-proxy\r\n\r\n');
+  clientSocket.write('HTTP/1.1 200 Connection Established\r\nProxy-agent: grancache\r\n\r\n');
   if (head && head.length) clientSocket.unshift(head);
   clientSocket.on('error', () => {});
   if (!certsReady) {
@@ -1992,7 +1992,7 @@ function isOurProxyProcess(pid) {
       windowsHide: true,
       encoding: 'utf8',
     });
-    return /gbf-cache-proxy\.exe|node\.exe/i.test(out);
+    return /grancache\.exe|gbf-cache-proxy\.exe|node\.exe/i.test(out);
   } catch {
     return false;
   }
